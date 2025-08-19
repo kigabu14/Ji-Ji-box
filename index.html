@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ตัวช่วยขายกล่องลูกฟูก v3 | หลายรุ่น • มัด/เที่ยว • ใบเสนอราคา • บันทึกแยก</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root { --brand:#22d3ee; --brand2:#0ea5e9; }
+    html, body { font-family: 'Prompt', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
+    .gradient { background: radial-gradient(1000px 600px at 10% -10%, rgba(34,211,238,.25), transparent 60%), radial-gradient(900px 400px at 90% 10%, rgba(14,165,233,.25), transparent 60%), linear-gradient(180deg, #0f172a, #0b1220); }
+    .card { background: rgba(2,6,23,.65); border: 1px solid rgba(255,255,255,.08); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .chip { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); }
+    .kpi { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
+    @media print { .no-print { display: none !important } body { background:#fff } .print-area { background:#fff!important;color:#0b1220!important;border:none!important;box-shadow:none!important } }
+    a.link { color:#67e8f9; text-decoration: underline; }
+    .mini { font-size:.8rem }
+  </style>
+</head>
+<body class="gradient min-h-screen text-white">
+  <header class="max-w-7xl mx-auto px-6 pt-10 pb-6 no-print">
+    <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-6">
+      <div>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full chip text-xs text-cyan-100">📦 ตัวช่วยขายกล่องลูกฟูก (v3)</div>
+        <h1 class="text-3xl md:text-4xl font-semibold mt-3">คำนวณราคา • มัด • เที่ยว • ปริมาตรคิว • ใบเสนอราคา</h1>
+        <p class="text-white/70 mt-2">เพิ่ม/เลือกหลายรุ่น ใส่ค่าขนส่ง ติ๊ก “ใส่จนเต็มคัน” และบันทึกไป Google Sheets หรือบันทึก PDF ได้</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <button id="btnReset" class="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 transition">รีเซ็ต</button>
+        <button id="btnPrint" class="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-medium transition">ส่งออก PDF</button>
+      </div>
+    </div>
+    <div class="max-w-7xl mx-auto px-6 mt-2">
+      <div class="rounded-xl p-3 chip text-xs text-cyan-100">
+        เชื่อม Google Sheets: วาง URL ของ Apps Script Web App ด้านล่าง (ตั้งเป็น Anyone) แล้วใช้ปุ่ม “บันทึกรุ่นสินค้า”, “บันทึกออเดอร์”, “บันทึกใบเสนอราคาเป็น PDF”
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-6 pb-16">
+    <!-- CONFIG + SHEETS -->
+    <section class="grid lg:grid-cols-3 gap-6 no-print">
+      <div class="card rounded-2xl p-6 lg:col-span-2">
+        <h2 class="text-xl font-semibold mb-4">รายการสินค้า (หลายรุ่น)</h2>
+        <div class="grid md:grid-cols-6 gap-3">
+          <div class="md:col-span-2">
+            <label class="block text-sm text-white/80 mb-1">ชื่อรุ่น</label>
+            <input id="p_name" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="เช่น RSC-403025">
+          </div>
+          <div><label class="block text-sm text-white/80 mb-1">ยาว L (ซม.)</label><input id="p_L" type="number" min="5" step="0.1" value="40" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div><label class="block text-sm text-white/80 mb-1">กว้าง W (ซม.)</label><input id="p_W" type="number" min="5" step="0.1" value="30" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div><label class="block text-sm text-white/80 mb-1">สูง H (ซม.)</label><input id="p_H" type="number" min="5" step="0.1" value="25" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div><label class="block text-sm text-white/80 mb-1">จำนวน/มัด (ใบ)</label><input id="p_boxesPerBundle" type="number" min="5" step="1" value="20" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div><label class="block text-sm text-white/80 mb-1">ราคา/ใบ (บาท)</label><input id="p_pricePerBox" type="number" min="0" step="0.01" value="12.00" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div><label class="block text-sm text-white/80 mb-1">ราคา/มัด (บาท)</label><input id="p_pricePerBundle" type="number" min="0" step="0.1" value="220" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div class="md:col-span-2">
+            <label class="block text-sm text-white/80 mb-1">หมายเหตุ/รุ่น (ถ้ามี)</label>
+            <input id="p_note" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400" placeholder="บันทึกเสริม">
+          </div>
+          <div class="md:col-span-2 flex items-end gap-2">
+            <button id="btnAddModel" class="w-full md:w-auto px-4 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-semibold">+ เพิ่มรุ่น</button>
+            <button id="btnClearModels" class="w-full md:w-auto px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20">ลบรุ่นทั้งหมด</button>
+          </div>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="font-semibold mb-3">รุ่นทั้งหมด</h3>
+          <div id="modelList" class="grid md:grid-cols-2 xl:grid-cols-3 gap-4"></div>
+        </div>
+      </div>
+
+      <div class="card rounded-2xl p-6">
+        <h2 class="text-xl font-semibold mb-4">เชื่อม Google Sheets (เดโม่)</h2>
+        <label class="block text-sm text-white/80 mb-1">Web App URL (POST/GET)</label>
+        <input id="sheetURL" value='https://script.google.com/macros/s/AKfycbxN7gEpLJFUMcCRxBhT4OjMujuVYF8y2HI3Qh1neZtCU-5uACSsQLJj2Xvzg4cVrew/exec' placeholder="วาง URL ของ Google Apps Script Web App (ต้องลงท้าย /exec)" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
+        <label class="block text-sm text-white/80 mb-1 mt-3">Token (ถ้ามี)</label>
+        <input id="sheetToken" placeholder="ใส่โทเคนถ้าต้องการ" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
+        <div class="flex flex-wrap gap-2 mt-4">
+          <button id="btnPing" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20">ทดสอบการเชื่อมต่อ</button>
+          <button id="btnLoadProducts" class="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20">ดึงสินค้า</button>
+          <button id="btnSaveProducts" class="px-4 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-semibold">บันทึกรุ่นสินค้า</button>
+          <button id="btnSaveOrder" class="px-4 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-semibold">บันทึกออเดอร์</button>
+          <button id="btnSavePDF" class="px-4 py-2.5 rounded-xl bg-fuchsia-400 hover:bg-fuchsia-300 text-slate-900 font-semibold">บันทึกใบเสนอราคาเป็น PDF</button>
+        </div>
+        <div id="sheetHint" class="text-xs text-white/60 mt-3">สถานะ: -</div>
+      </div>
+    </section>
+
+    <!-- ORDER & VEHICLE -->
+    <section class="grid lg:grid-cols-3 gap-6 mt-6 no-print">
+      <div class="card rounded-2xl p-6 lg:col-span-2">
+        <h2 class="text-xl font-semibold mb-4">สร้างออเดอร์</h2>
+        <div class="grid md:grid-cols-5 gap-3">
+          <div class="md:col-span-2">
+            <label class="block text-sm text-white/80 mb-1">เลือกรุ่น</label>
+            <select id="orderModel" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></select>
+          </div>
+          <div><label class="block text-sm text-white/80 mb-1">สั่งจำนวน (ใบ)</label><input id="orderQty" type="number" min="1" step="1" value="500" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          <div>
+            <label class="block text-sm text-white/80 mb-1">รูปแบบราคา</label>
+            <select id="orderPriceMode" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
+              <option value="auto">อัตโนมัติ (เปรียบเทียบ/ใบ vs /มัด)</option>
+              <option value="perBox">ใช้ราคา/ใบ</option>
+              <option value="perBundle">ใช้ราคา/มัด</option>
+            </select>
+          </div>
+          <div class="flex items-end"><button id="btnAddLine" class="w-full px-4 py-2.5 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-900 font-semibold">+ เพิ่มรายการ</button></div>
+        </div>
+
+        <div class="mt-6">
+          <h3 class="font-semibold mb-3">รายการสั่งซื้อ</h3>
+          <div id="orderList" class="space-y-3"></div>
+        </div>
+      </div>
+
+      <div class="card rounded-2xl p-6">
+        <h2 class="text-xl font-semibold mb-4">ขนส่ง & การวางมัด</h2>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-xs text-white/70 mb-1">เลือกรถขนส่ง</label>
+            <select id="vehiclePreset" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
+              <option value="">เลือกหรือกำหนดเอง</option>
+              <option value="pickup_box_single">กระบะตู้ทึบ ตอนเดียว (210×160×200)</option>
+              <option value="pickup_double">กระบะสองตอน (210×160×175)</option>
+              <option value="fourw_jumbo">สี่ล้อจัมโบ้ (310×180×200)</option>
+              <option value="sixw">หกล้อ (510×230×240)</option>
+            </select>
+          </div>
+          <div class="grid grid-cols-3 gap-3">
+            <div><label class="block text-xs text-white/70 mb-1">ยาวโหลด (ซม.)</label><input id="cargoL" type="number" value="210" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+            <div><label class="block text-xs text-white/70 mb-1">กว้างโหลด (ซม.)</label><input id="cargoW" type="number" value="145" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+            <div><label class="block text-xs text-white/70 mb-1">สูงโหลด (ซม.)</label><input id="cargoH" type="number" value="120" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-xs text-white/70 mb-1">รับน้ำหนักได้ (กก.)</label><input id="cargoMaxKg" type="number" value="800" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+            <div><label class="block text-xs text-white/70 mb-1">เผื่อพื้นที่/ความสูง (%)</label><input id="safetyPct" type="number" value="10" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div><label class="block text-xs text-white/70 mb-1">ช่องว่างระหว่างมัด (ซม.)</label><input id="gap" type="number" value="1" step="0.5" min="0" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+            <div><label class="block text-xs text-white/70 mb-1">ค่าขนส่ง/เที่ยว (บาท)</label><input id="shipPerTrip" type="number" value="800" min="0" step="1" class="w-full px-3 py-2 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+          </div>
+          <div class="flex items-center justify-between pt-1">
+            <span class="text-white/70 text-sm">หมุนจัดวางอัตโนมัติ</span>
+            <label class="inline-flex items-center gap-2"><input id="autoRotate" type="checkbox" checked class="w-5 h-5 rounded-md accent-cyan-400"><span class="text-sm">เปิด</span></label>
+          </div>
+          <div class="flex items-center justify-between pt-2">
+            <span class="text-white/70 text-sm">ใส่จนเต็มคัน (เที่ยวละมากที่สุด)</span>
+            <label class="inline-flex items-center gap-2"><input id="fillToFull" type="checkbox" checked class="w-5 h-5 rounded-md accent-cyan-400"><span class="text-sm">เปิด</span></label>
+          </div>
+          <button id="btnCalc" class="w-full mt-2 px-4 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-semibold">คำนวณ</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- KPIs -->
+    <section class="mt-8 grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div class="kpi rounded-2xl p-5"><div class="text-white/70 text-sm">รวมจำนวน (ใบ/มัด)</div><div id="kpiQty" class="text-2xl font-semibold mt-1">-</div><div id="kpiBundles" class="text-white/70 text-sm mt-1">-</div></div>
+      <div class="kpi rounded-2xl p-5"><div class="text-white/70 text-sm">ราคารวม</div><div id="kpiPrice" class="text-2xl font-semibold mt-1">-</div><div id="kpiShip" class="text-white/70 text-sm mt-1">-</div></div>
+      <div class="kpi rounded-2xl p-5"><div class="text-white/70 text-sm">ปริมาตรใช้/เที่ยว</div><div id="kpiVol" class="text-2xl font-semibold mt-1">-</div><div id="kpiVolLeft" class="text-white/70 text-sm mt-1">-</div></div>
+      <div class="kpi rounded-2xl p-5"><div class="text-white/70 text-sm">จำนวนเที่ยว</div><div id="kpiTrips" class="text-2xl font-semibold mt-1">-</div></div>
+    </section>
+
+    <!-- TRIP BREAKDOWN -->
+    <section class="mt-8 card rounded-2xl p-6">
+      <h3 class="text-lg font-semibold mb-3">สรุปแต่ละเที่ยว</h3>
+      <p class="text-white/70 text-sm mb-3">แจ้งจำนวนมัดต่อเที่ยว ใช้กี่ลบ.ม. เหลือกี่ลบ.ม. และระบุเที่ยวที่ไม่เต็ม</p>
+      <div id="tripBreakdown" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4"><div class="text-white/60">กด “คำนวณ” เพื่อดูสรุป</div></div>
+    </section>
+
+    <!-- VISUAL -->
+    <section class="mt-8 card rounded-2xl p-6">
+      <div class="flex items-center justify-between gap-4">
+        <h3 class="text-lg font-semibold">จำลองการวางมัดต่อชั้น (ใช้รุ่นที่กินพื้นที่มากสุดเพื่อประเมิน)</h3>
+        <div class="flex items-center gap-3 text-sm">
+          <div class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-cyan-400"></span> พื้นที่บรรทุก</div>
+          <div class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full bg-emerald-400"></span> มัดที่ใส่ได้</div>
+        </div>
+      </div>
+      <div class="mt-4 grid md:grid-cols-2 gap-6">
+        <div id="bin2D" class="w-full aspect-[16/10] rounded-xl bg-white/5 border border-white/10 grid place-items-center text-white/60 text-sm">กด “คำนวณ” เพื่อดูการจำลอง</div>
+        <div class="space-y-2">
+          <div class="p-4 rounded-xl bg-white/5 border border-white/10"><div class="text-sm text-white/70 mb-1">สรุปต่อชั้น</div><div id="perLayerSummary" class="text-white/90">-</div></div>
+          <div class="p-4 rounded-xl bg-white/5 border border-white/10">
+            <div class="text-sm text-white/70 mb-1">ขนาดมัด (ตามสูตร)</div>
+            <div id="bundleSizes" class="text-white/90 text-sm">-</div>
+            <p class="text-xs text-white/60 mt-2">สูตร: (กว้าง+สูง) × (ยาว+กว้าง), สูงต่อมัด = 12 ซม.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- QUOTE (PRINT AREA) -->
+    <section id="quoteArea" class="mt-8 rounded-2xl p-6 bg-white/5 border border-white/10 print-area">
+      <div class="no-print mb-4"><h3 class="text-lg font-semibold">ข้อมูลลูกค้า / ใบเสนอราคา</h3></div>
+      <div class="grid md:grid-cols-3 gap-4">
+        <div><label class="block text-sm text-white/80 mb-1">ชื่อลูกค้า</label><input id="custName" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+        <div><label class="block text-sm text-white/80 mb-1">เบอร์โทร</label><input id="custPhone" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+        <div><label class="block text-sm text-white/80 mb-1">วันที่</label><input id="custDate" type="date" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400"></div>
+      </div>
+
+      <div class="mt-6 overflow-x-auto">
+        <table class="min-w-full text-sm border-separate border-spacing-y-2">
+          <thead class="text-white/80">
+            <tr>
+              <th class="text-left">รุ่น</th>
+              <th class="text-right">จำนวน(ใบ)</th>
+              <th class="text-right">จำนวน(มัด)</th>
+              <th class="text-right">ราคา/ใบ</th>
+              <th class="text-right">ราคา/มัด</th>
+              <th class="text-right">ส่วนลด</th>
+              <th class="text-right">ราคารวม</th>
+            </tr>
+          </thead>
+          <tbody id="quoteLines"></tbody>
+          <tfoot>
+            <tr>
+              <td colspan="5" class="text-right font-semibold pt-2">ค่าขนส่งรวม</td>
+              <td colspan="2" id="quoteShip" class="text-right font-semibold pt-2">-</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="text-right font-semibold">ส่วนลดรวม (บาท)</td>
+              <td colspan="2">
+                <input id="orderDiscount" type="number" value="0" class="w-32 px-2 py-1 rounded-md bg-white/10 border border-white/20 text-right" />
+              </td>
+            </tr>
+            <tr>
+              <td colspan="5" class="text-right font-semibold">รวมสุทธิ</td>
+              <td colspan="2" id="quoteTotal" class="text-right font-semibold">-</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <div class="text-xs text-white/60 mt-3">ใบเสนอราคาเป็นการประเมินเบื้องต้น อาจมีการเปลี่ยนแปลงตามเงื่อนไขจริง</div>
+    </section>
+
+    <!-- APPS SCRIPT HELPER -->
+    <section class="mt-10 card rounded-2xl p-6 no-print">
+      <h2 class="text-xl font-semibold">เทมเพลต Apps Script (Version 3)</h2>
+      <p class="text-white/70 text-sm mt-2">รองรับ: ping, get_products, save_order, upsert_products, save_quote_pdf</p>
+      <div class="flex items-center justify-between gap-3 mt-3">
+        <span class="text-sm text-white/70">คัดลอกทั้งหมดแล้ววางใน Code.gs</span>
+        <button id="btnCopyGS" class="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-semibold">คัดลอกสคริปต์</button>
+      </div>
+      <textarea id="gsCode" class="mt-3 w-full h-[460px] p-4 rounded-xl bg-black/70 border border-white/10 text-cyan-100 text-xs" spellcheck="false">
+// ==== Google Apps Script for "Version 3" ====
+// ... (คงเดิมจากไฟล์ของคุณด้านบน ไม่เปลี่ยนส่วน Apps Script) ...
+      </textarea>
+      <div class="text-white/70 text-xs mt-2">Deploy เป็น Web app → Execute as: Me, Who has access: Anyone, เอา URL ที่ลงท้าย <b>/exec</b></div>
+    </section>
+  </main>
+
+  <script>
+    // ========== Utils ==========
+    const fmtInt = (n)=> (n||0).toLocaleString('th-TH');
+    const fmtMoney = (n)=> '฿' + (n||0).toLocaleString('th-TH',{minimumFractionDigits:2,maximumFractionDigits:2});
+    const nowDate = ()=> new Date().toISOString().slice(0,10);
+    const byId = (id)=> document.getElementById(id);
+    function pulse(el){ el.style.transition='transform .2s ease'; el.style.transform='scale(1.01)'; setTimeout(()=>el.style.transform='scale(1)',160); }
+    function uid(){ return Math.random().toString(36).slice(2,9); }
+    function validateWebAppURL(u){ try{ const url=new URL(u); return /script\.google\.com\/macros\/s\/.+\/exec$/.test(url.toString()); }catch{ return false } }
+
+    // ========== Elements ==========
+    const modelListEl = byId('modelList');
+    const orderModelEl = byId('orderModel');
+    const orderQtyEl = byId('orderQty');
+    const orderPriceModeEl = byId('orderPriceMode');
+    const orderListEl = byId('orderList');
+    const bin2D = byId('bin2D');
+    const perLayerSummary = byId('perLayerSummary');
+    const bundleSizes = byId('bundleSizes');
+
+    const kpiQty = byId('kpiQty');
+    const kpiBundles = byId('kpiBundles');
+    const kpiPrice = byId('kpiPrice');
+    const kpiShip = byId('kpiShip');
+    const kpiVol = byId('kpiVol');
+    const kpiVolLeft = byId('kpiVolLeft');
+    const kpiTrips = byId('kpiTrips');
+
+    const quoteLines = byId('quoteLines');
+    const quoteShip = byId('quoteShip');
+    const quoteTotal = byId('quoteTotal');
+
+    const cargoLEl = byId('cargoL');
+    const cargoWEl = byId('cargoW');
+    const cargoHEl = byId('cargoH');
+    const safetyPctEl = byId('safetyPct');
+    const gapEl = byId('gap');
+    const shipPerTripEl = byId('shipPerTrip');
+    const autoRotateEl = byId('autoRotate');
+    const fillToFullEl = byId('fillToFull');
+    const vehiclePresetEl = byId('vehiclePreset');
+
+    const btnAddModel = byId('btnAddModel');
+    const btnClearModels = byId('btnClearModels');
+    const btnAddLine = byId('btnAddLine');
+    const btnCalc = byId('btnCalc');
+    const btnPrint = byId('btnPrint');
+    const btnReset = byId('btnReset');
+
+    const sheetURL = byId('sheetURL');
+    const sheetToken = byId('sheetToken');
+    const btnPing = byId('btnPing');
+    const btnSaveOrder = byId('btnSaveOrder');
+    const btnLoadProducts = byId('btnLoadProducts');
+    const btnSaveProducts = byId('btnSaveProducts');
+    const btnSavePDF = byId('btnSavePDF');
+    const sheetHint = byId('sheetHint');
+
+    const custName = byId('custName');
+    const custPhone = byId('custPhone');
+    const custDate = byId('custDate');
+
+    const btnCopyGS = byId('btnCopyGS');
+    const gsCode = byId('gsCode');
+
+    // ========== Local state ==========
+    let models = JSON.parse(localStorage.getItem('box_models')||'[]');
+    let orderLines = [];
+    let lastSummary = null;
+
+    // ========== Defaults ==========
+    custDate.value = nowDate();
+    if (models.length===0){
+      models = [
+        {id: uid(), name:'RSC-403025', L:40, W:30, H:25, boxesPerBundle:20, pricePerBox:12, pricePerBundle:220, note:''},
+        {id: uid(), name:'RSC-322218', L:32, W:22, H:18, boxesPerBundle:20, pricePerBox:9.5, pricePerBundle:190, note:''}
+      ];
+    }
+
+    // ========== Helpers ==========
+    function bundleFootprint(model){
+      const w = (Number(model.W)||0) + (Number(model.H)||0);
+      const l = (Number(model.L)||0) + (Number(model.W)||0);
+      const h = 12; // cm
+      return {w, l, h};
+    }
+
+    // ========== Render ==========
+    function renderModels(){
+      orderModelEl.innerHTML = models.map(m=>`<option value="${m.id}">${m.name} (${m.L}×${m.W}×${m.H} ซม.)</option>`).join('');
+      modelListEl.innerHTML = models.map(m=>{
+        const fp = bundleFootprint(m);
+        return `<div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <div class="font-semibold">${m.name}</div>
+              <div class="text-white/70 text-sm">ขนาด/ใบ: ${m.L}×${m.W}×${m.H} ซม.</div>
+              <div class="text-white/70 text-sm">จำนวน/มัด: ${m.boxesPerBundle} ใบ • สูง/มัด: ${fp.h} ซม.</div>
+              <div class="text-white/70 text-sm">ขนาดวางมัด: ${(fp.w).toFixed(1)} × ${(fp.l).toFixed(1)} ซม.</div>
+              <div class="text-white/70 text-sm">ราคา: ${fmtMoney(m.pricePerBox)}/ใบ • ${fmtMoney(m.pricePerBundle)}/มัด</div>
+              ${m.note ? `<div class="text-white/50 text-xs mt-1">โน้ต: ${m.note}</div>`:''}
+            </div>
+            <div class="flex flex-col gap-2">
+              <button data-id="${m.id}" class="btnEdit px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-sm">แก้ไข</button>
+              <button data-id="${m.id}" class="btnDel px-3 py-1.5 rounded-lg bg-red-500/80 hover:bg-red-500 text-sm text-white">ลบ</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('') || `<div class="text-white/60">ยังไม่มีรุ่นสินค้า เพิ่มรุ่นด้านบน</div>`;
+
+      modelListEl.querySelectorAll('.btnDel').forEach(b=>{
+        b.onclick = ()=>{ models = models.filter(m=>m.id!==b.dataset.id); saveModels(); renderModels(); };
+      });
+      modelListEl.querySelectorAll('.btnEdit').forEach(b=>{
+        b.onclick = ()=>{
+          const m = models.find(x=>x.id===b.dataset.id);
+          if (!m) return;
+          byId('p_name').value = m.name;
+          byId('p_L').value = m.L;
+          byId('p_W').value = m.W;
+          byId('p_H').value = m.H;
+          byId('p_boxesPerBundle').value = m.boxesPerBundle;
+          byId('p_pricePerBox').value = m.pricePerBox;
+          byId('p_pricePerBundle').value = m.pricePerBundle;
+          byId('p_note').value = m.note || '';
+          models = models.filter(x=>x.id!==m.id);
+          saveModels(); renderModels();
+        };
+      });
+    }
+    function saveModels(){ localStorage.setItem('box_models', JSON.stringify(models)); }
+    function addModel(){
+      const m = {
+        id: uid(),
+        name: byId('p_name').value || `MODEL-${uid().slice(0,4).toUpperCase()}`,
+        L: +byId('p_L').value || 0,
+        W: +byId('p_W').value || 0,
+        H: +byId('p_H').value || 0,
+        boxesPerBundle: Math.max(1, +byId('p_boxesPerBundle').value || 1),
+        pricePerBox: Math.max(0, +byId('p_pricePerBox').value || 0),
+        pricePerBundle: Math.max(0, +byId('p_pricePerBundle').value || 0),
+        note: byId('p_note').value || ''
+      };
+      models.push(m); saveModels(); renderModels(); pulse(modelListEl);
+    }
+
+    // ========== Orders ==========
+    function addOrderLine(){
+      const id = orderModelEl.value;
+      const m = models.find(x=>x.id===id);
+      if (!m) return;
+      const qty = Math.max(1, +orderQtyEl.value || 1);
+      const priceMode = orderPriceModeEl.value;
+      // เพิ่มช่อง ราคาขายเอง + ส่วนลด ต่อบรรทัด (เริ่มต้นว่าง)
+      orderLines.push({lineId: uid(), modelId: id, qty, priceMode, sellPricePerBox: 0, discountAmt: 0});
+      renderOrder();
+    }
+
+    function renderOrder(){
+      orderListEl.innerHTML = orderLines.map(l=>{
+        const m = models.find(x=>x.id===l.modelId);
+        const bundles = Math.ceil(l.qty / m.boxesPerBundle);
+        const unitB = m.pricePerBox;
+        const unitBundle = m.pricePerBundle;
+
+        // ใช้ราคาขายเอง/ใบ ถ้ากำหนดไว้
+        const effUnitB = (l.sellPricePerBox && l.sellPricePerBox > 0) ? l.sellPricePerBox : unitB;
+
+        let usedMode = l.priceMode;
+        let lineTotal = 0;
+        if (l.sellPricePerBox && l.sellPricePerBox > 0) {
+          usedMode = 'perBox';
+          lineTotal = effUnitB * l.qty;
+        } else if (l.priceMode==='auto'){
+          const totalByBox = effUnitB * l.qty;
+          const totalByBundle = unitBundle * bundles;
+          if (totalByBox <= totalByBundle){ usedMode='perBox'; lineTotal=totalByBox; }
+          else { usedMode='perBundle'; lineTotal=totalByBundle; }
+        } else if (l.priceMode==='perBox'){ lineTotal = effUnitB * l.qty; }
+        else { lineTotal = unitBundle * bundles; }
+
+        // หักส่วนลดรายบรรทัด (บาท)
+        lineTotal = Math.max(0, lineTotal - (l.discountAmt||0));
+
+        return `
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10 flex flex-col gap-3">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <div class="font-semibold">${m.name}</div>
+              <div class="text-white/70 text-sm">จำนวน: ${fmtInt(l.qty)} ใบ ≈ ${fmtInt(bundles)} มัด • ราคาใช้: ${usedMode==='perBox'?'ต่อใบ':'ต่อมัด'}</div>
+            </div>
+            <div class="text-right">
+              <div class="text-white/80 text-sm">ราคารวมสุทธิ</div>
+              <div class="font-semibold">${fmtMoney(lineTotal)}</div>
+            </div>
+          </div>
+
+          <div class="grid md:grid-cols-3 gap-2">
+            <label class="mini block">ราคาขายเอง/ใบ (บาท)
+              <input data-id="${l.lineId}" data-k="sellPricePerBox" type="number" step="0.01" value="${l.sellPricePerBox||''}" placeholder="เว้นว่าง = ใช้ราคาตามรุ่น"
+                class="w-full mt-1 px-3 py-2 rounded-lg bg-white/10 border border-white/15">
+            </label>
+            <label class="mini block">ส่วนลดบรรทัดนี้ (บาท)
+              <input data-id="${l.lineId}" data-k="discountAmt" type="number" step="0.01" value="${l.discountAmt||0}"
+                class="w-full mt-1 px-3 py-2 rounded-lg bg-white/10 border border-white/15">
+            </label>
+            <div class="mini flex items-end">
+              <button data-id="${l.lineId}" class="btnLineDel px-3 py-2 rounded-lg bg-red-500/80 hover:bg-red-500 text-white w-full">ลบ</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('') || `<div class="text-white/60">ยังไม่มีรายการ เพิ่มด้านบน</div>`;
+
+      // bind delete
+      orderListEl.querySelectorAll('.btnLineDel').forEach(b=>{
+        b.onclick=()=>{ orderLines = orderLines.filter(x=>x.lineId!==b.dataset.id); renderOrder(); };
+      });
+
+      // bind inline inputs (ขายเอง/ส่วนลด)
+      orderListEl.querySelectorAll('input[data-k]').forEach(inp=>{
+        inp.oninput = ()=>{
+          const id = inp.dataset.id;
+          const key = inp.dataset.k;
+          const line = orderLines.find(x=>x.lineId===id);
+          if (!line) return;
+          const val = +inp.value || 0;
+          line[key] = val;
+          compute();
+        };
+      });
+
+      compute();
+    }
+
+    // ========== Compute (อัดเต็มพื้นที่ + ทำ Quote จากรายการขายจริง) ==========
+    function compute(){
+      const gap = Math.max(0, +gapEl.value || 0);
+      const autoRotate = autoRotateEl.checked;
+      const fillToFull = fillToFullEl.checked;
+      const cargoL = +cargoLEl.value, cargoW = +cargoWEl.value, cargoH = +cargoHEl.value;
+      const safeH = cargoH * (1 - (+safetyPctEl.value||0)/100);
+
+      let totalQty = 0, totalBundles = 0, subTotal = 0;
+      let perModel = [];         // สำหรับสรุปใช้พื้นที่
+      let quoteRows = [];        // สำหรับแสดงในใบเสนอราคา
+
+      if (!orderLines.length){
+        quoteLines.innerHTML = '';
+        quoteShip.textContent = '-';
+        quoteTotal.textContent = '-';
+      }
+
+      // คำนวณทีละบรรทัด (รองรับราคาขายเอง/ส่วนลด)
+      for (const l of orderLines){
+        const m = models.find(x=>x.id===l.modelId); if(!m) continue;
+        const bundles = Math.ceil(l.qty / Math.max(1, m.boxesPerBundle));
+        totalQty += l.qty; totalBundles += bundles;
+
+        const fp = bundleFootprint(m);
+
+        // ราคา
+        const unitBBase = m.pricePerBox;
+        const unitBundle = m.pricePerBundle;
+        const unitBSell = (l.sellPricePerBox && l.sellPricePerBox>0)? l.sellPricePerBox : unitBBase;
+
+        let usedMode = l.priceMode;
+        let lineTotal = 0;
+        if (l.sellPricePerBox && l.sellPricePerBox>0){
+          usedMode = 'perBox';
+          lineTotal = unitBSell * l.qty;
+        } else if (l.priceMode==='auto'){
+          const tBox = unitBSell * l.qty;
+          const tBundle = unitBundle * bundles;
+          if (tBox <= tBundle) { usedMode='perBox'; lineTotal=tBox; }
+          else { usedMode='perBundle'; lineTotal=tBundle; }
+        } else if (l.priceMode==='perBox'){ lineTotal = unitBSell * l.qty; }
+        else { lineTotal = unitBundle * bundles; }
+
+        // หักส่วนลดบรรทัด
+        const discountLine = +l.discountAmt || 0;
+        lineTotal = Math.max(0, lineTotal - discountLine);
+
+        subTotal += lineTotal;
+
+        perModel.push({ m, qty:l.qty, bundles, usedMode, fp });
+
+        // เก็บข้อมูลสำหรับตาราง Quote
+        quoteRows.push({
+          model: `${m.name}`,
+          qtyBox: l.qty,
+          bundles: bundles,
+          pricePerBox: (usedMode==='perBox') ? unitBSell : 0,
+          pricePerBundle: (usedMode==='perBundle') ? unitBundle : 0,
+          discount: discountLine,
+          lineTotal: lineTotal
+        });
+      }
+
+      // ====== เลเยอร์ต่อชั้นแบบ "อัดเต็มพื้นที่" : ผสมการหมุน + แบ่งโซน ======
+      // เลือก footprint ที่ “ใหญ่สุด” เป็นฐาน แต่ลองแบ่งโซนวางผสม (guillotine split) เพื่อให้เต็มขึ้น
+      let maxW=0, maxL=0, hPerBundle=12;
+      perModel.forEach(x=>{ maxW = Math.max(maxW, x.fp.w); maxL = Math.max(maxL, x.fp.l); });
+
+      function fitSimple(binW, binL, itemW, itemL, gap){
+        const cols = Math.max(0, Math.floor( binW / (itemW+gap) ));
+        const rows = Math.max(0, Math.floor( binL / (itemL+gap) ));
+        return {cols, rows, count: cols*rows};
+      }
+
+      function bestLayer(binW, binL, itemW, itemL, gap, allowRotate){
+        // 1) เดี่ยว ๆ 2 ทิศ
+        const A = fitSimple(binW, binL, itemW, itemL, gap);
+        const B = fitSimple(binW, binL, itemL, itemW, gap);
+        let best = { perLayer:0, cols:A.cols, rows:A.rows, w:itemW, l:itemL, mode:'A' };
+        if (B.count > (A.cols*A.rows)) best = { perLayer:B.count, cols:B.cols, rows:B.rows, w:itemL, l:itemW, mode:'B' };
+        else best.perLayer = A.cols*A.rows;
+
+        if (!allowRotate) return best;
+
+        // 2) ผสมแบบ "แบ่งตามความกว้าง" (แนวคอลัมน์ A + ที่เหลือเป็น B)
+        const colA = Math.floor(binW/(itemW+gap));
+        const rowA = Math.floor(binL/(itemL+gap));
+        const rowB = Math.floor(binL/(itemW+gap));
+        for (let k=0; k<=colA; k++){
+          const usedW = k*(itemW+gap);
+          const leftW = binW - usedW;
+          const colB = Math.max(0, Math.floor(leftW/(itemL+gap)));
+          const count = (k*rowA) + (colB*rowB);
+          if (count > best.perLayer){
+            best = { perLayer:count, cols:k, rows:rowA, w:itemW, l:itemL, mode:'mixW' };
+          }
+        }
+
+        // 3) ผสมแบบ "แบ่งตามความยาว" (แนวแถว A + ที่เหลือเป็น B)
+        const rowA2 = Math.floor(binL/(itemL+gap));
+        const colA2 = Math.floor(binW/(itemW+gap));
+        const colB2 = Math.floor(binW/(itemL+gap));
+        for (let r=0; r<=rowA2; r++){
+          const usedL = r*(itemL+gap);
+          const leftL = binL - usedL;
+          const rowB2 = Math.max(0, Math.floor(leftL/(itemW+gap)));
+          const count = (r*colA2) + (rowB2*colB2);
+          if (count > best.perLayer){
+            best = { perLayer:count, cols:colA2, rows:r, w:itemW, l:itemL, mode:'mixL' };
+          }
+        }
+
+        return best;
+      }
+
+      const chosen = bestLayer(+cargoW, +cargoL, maxW, maxL, gap, autoRotate);
+      const layers = Math.max(0, Math.floor( safeH / (hPerBundle + gap) ));
+      let maxBundlesPerTrip = chosen.perLayer * layers;
+
+      // ถ้าติ๊ก "ใส่จนเต็มคัน" และยังเหลือพื้นที่แนวตั้ง ให้ดันชั้นเพิ่ม (กรณี gap ทำให้ยังเหลือ)
+      if (fillToFull && maxBundlesPerTrip>0){
+        const canAddLayer = Math.floor( (safeH + gap) / (hPerBundle + gap) );
+        if (canAddLayer > layers){
+          maxBundlesPerTrip = chosen.perLayer * canAddLayer;
+        }
+      }
+
+      // ประมาณปริมาตร: ใช้ค่าเฉลี่ย footprint ของทุกมัด จะให้ตัวเลขใกล้จริงมากกว่า
+      let totalFootArea_cm2 = 0;
+      perModel.forEach(x=> totalFootArea_cm2 += x.bundles * (x.fp.w * x.fp.l));
+      const avgFootArea_cm2 = totalBundles>0 ? totalFootArea_cm2 / totalBundles : (maxW*maxL);
+      const volPerBundle_m3 = (avgFootArea_cm2/10000) * (hPerBundle/100);
+      const cargoVolM3 = (cargoL/100)*(cargoW/100)*(safeH/100);
+
+      if (maxBundlesPerTrip <= 0 && totalBundles > 0){
+        kpiQty.textContent = `${fmtInt(totalQty)} ใบ`;
+        kpiBundles.textContent = `${fmtInt(totalBundles)} มัด`;
+        kpiPrice.textContent = fmtMoney(subTotal);
+        kpiShip.textContent  = 'ค่าขนส่งรวม: -';
+        kpiVol.textContent   = `0.000 / ${cargoVolM3.toFixed(3)} ลบ.ม.`;
+        kpiVolLeft.textContent = `เหลือ ~ ${cargoVolM3.toFixed(3)} ลบ.ม.`;
+        kpiTrips.textContent = 'ไม่สามารถบรรทุกได้';
+        document.getElementById('tripBreakdown').innerHTML = '<div class="text-white/60">ไม่สามารถบรรทุกได้ด้วยค่าปัจจุบัน</div>';
+        perLayerSummary.textContent = 'มัดใหญ่เกินพื้นที่ชั้นเดียว กรุณาลดไซต์หรือปรับค่ารถ';
+        bundleSizes.innerHTML = perModel.length>0 ? perModel.map(x=>`• ${x.m.name}: ${(x.fp.w).toFixed(1)} × ${(x.fp.l).toFixed(1)} × 12 ซม. (${fmtInt(x.bundles)} มัด)`).join('<br>') : '-';
+        lastSummary = null;
+        // อัปเดต Quote จากออเดอร์ (แม้บรรทุกไม่ได้)
+        fillQuoteTable(quoteRows, 0, subTotal);
+        return;
+      }
+
+      // สรุปเที่ยว
+      const tripCards = [];
+      let bundlesLeft = totalBundles, tripIndex = 0;
+      while (bundlesLeft > 0 && maxBundlesPerTrip>0 && tripIndex < 200){
+        tripIndex++;
+        const thisTripBundles = Math.min(bundlesLeft, maxBundlesPerTrip);
+        const thisTripVol = thisTripBundles * volPerBundle_m3;
+        const thisTripVolLeft = Math.max(0, cargoVolM3 - thisTripVol);
+        const isFull = thisTripBundles===maxBundlesPerTrip;
+        tripCards.push({trip: tripIndex, bundles: thisTripBundles, vol: thisTripVol, volLeft: thisTripVolLeft, full: isFull});
+        bundlesLeft -= thisTripBundles;
+      }
+      const trips = tripCards.length;
+      const shipCost = (+shipPerTripEl.value||0) * trips;
+
+      const usedBundlesThisTrip = Math.min(totalBundles, maxBundlesPerTrip);
+      const usedVolThisTrip = usedBundlesThisTrip * volPerBundle_m3;
+      const volLeftThisTrip = Math.max(0, cargoVolM3 - usedVolThisTrip);
+
+      // KPI
+      kpiQty.textContent = `${fmtInt(totalQty)} ใบ`;
+      kpiBundles.textContent = `${fmtInt(totalBundles)} มัด`;
+      kpiPrice.textContent = fmtMoney(subTotal);
+      kpiShip.textContent = `ค่าขนส่งรวม: ${fmtMoney(shipCost)} (${fmtInt(trips)} เที่ยว × ${fmtMoney(+shipPerTripEl.value||0)})`;
+      kpiVol.textContent = `${usedVolThisTrip.toFixed(3)} / ${cargoVolM3.toFixed(3)} ลบ.ม.`;
+      kpiVolLeft.textContent = `เหลือ ~ ${volLeftThisTrip.toFixed(3)} ลบ.ม.`;
+      kpiTrips.textContent = `${fmtInt(trips)} เที่ยว`;
+
+      // สรุปการวางต่อชั้น
+      perLayerSummary.textContent = chosen.perLayer>0 ?
+        `ต่อชั้น ~ ${fmtInt(chosen.perLayer)} มัด × ซ้อน ~ ${fmtInt(layers)} ชั้น ≈ ~ ${fmtInt(maxBundlesPerTrip)} มัด/เที่ยว` :
+        'มัดใหญ่เกินพื้นที่ชั้นเดียว กรุณาลดไซต์หรือปรับค่ารถ';
+      drawPacking(bin2D, cargoW, cargoL, chosen.w, chosen.l, chosen.perLayer, chosen.cols, chosen.rows, gap);
+
+      bundleSizes.innerHTML = perModel.length>0 ? perModel.map(x=>`• ${x.m.name}: ${(x.fp.w).toFixed(1)} × ${(x.fp.l).toFixed(1)} × 12 ซม. (${fmtInt(x.bundles)} มัด)`).join('<br>') : '-';
+
+      // Trip breakdown
+      const tripBreakdownEl = document.getElementById('tripBreakdown');
+      tripBreakdownEl.innerHTML = tripCards.map(t=>`<div class="rounded-xl p-4 bg-white/5 border border-white/10">
+        <div class="font-semibold">เที่ยวที่ ${t.trip} ${t.full? '• เต็มพิกัด ✅' : `• ไม่เต็ม เหลือ ${t.volLeft.toFixed(3)} ลบ.ม.`}</div>
+        <div class="text-white/80 text-sm mt-1">บรรทุก ~ ${fmtInt(t.bundles)} มัด</div>
+        <div class="text-white/70 text-sm">ใช้ ~ ${t.vol.toFixed(3)} ลบ.ม. • คงเหลือ ~ ${t.volLeft.toFixed(3)} ลบ.ม.</div>
+      </div>`).join('');
+
+      // อัปเดตตารางใบเสนอราคา จาก "รายการที่จะขายจริง"
+      fillQuoteTable(quoteRows, shipCost, subTotal);
+
+      // เก็บสรุป
+      lastSummary = {
+        perModel, totalQty, totalBundles,
+        totalPrice: subTotal,
+        shipCost, trips,
+        cargo: { L:cargoL, W:cargoW, H:safeH },
+        vol: { cargoVolM3, volPerBundle_m3, usedVolThisTrip, volLeftThisTrip },
+        capacityBySpace: maxBundlesPerTrip, maxBundlesPerTrip
+      };
+    }
+
+    // เติมตารางใบเสนอราคา + ส่วนลดรวม
+    function fillQuoteTable(rows, shipCost, subTotal){
+      // render รายการขายจริง
+      quoteLines.innerHTML = rows.map(r=>{
+        return `<tr>
+          <td class="text-left">${r.model}</td>
+          <td class="text-right">${fmtInt(r.qtyBox)}</td>
+          <td class="text-right">${fmtInt(r.bundles)}</td>
+          <td class="text-right">${r.pricePerBox? fmtMoney(r.pricePerBox): '-'}</td>
+          <td class="text-right">${r.pricePerBundle? fmtMoney(r.pricePerBundle): '-'}</td>
+          <td class="text-right">${r.discount? fmtMoney(r.discount): '-'}</td>
+          <td class="text-right">${fmtMoney(r.lineTotal)}</td>
+        </tr>`;
+      }).join('') || `<tr><td colspan="7" class="text-center text-white/60">ยังไม่มีรายการ</td></tr>`;
+
+      // ค่าขนส่งรวม
+      quoteShip.textContent = fmtMoney(shipCost||0);
+
+      // ส่วนลดรวม (บาท)
+      const discEl = byId('orderDiscount');
+      const disc = +((discEl && discEl.value) ? discEl.value : 0) || 0;
+      discEl && (discEl.oninput = ()=> compute()); // bind ให้คำนวณใหม่เมื่อแก้ส่วนลดรวม
+
+      const grand = Math.max(0, (subTotal||0) + (shipCost||0) - disc);
+      quoteTotal.textContent = fmtMoney(grand);
+    }
+
+    // วาดจำลองต่อชั้น
+    function drawPacking(container, binW, binL, itemW, itemL, perLayer, cols, rows, gap){
+      container.innerHTML = '';
+      container.classList.add('relative');
+      const rect = container.getBoundingClientRect();
+      const pad = 10;
+      const viewW = rect.width - pad*2, viewH = rect.height - pad*2;
+      const scale = Math.min(viewW/binW, viewH/binL);
+
+      const bin = document.createElement('div');
+      bin.style.position='absolute';
+      bin.style.left = (rect.width/2 - (binW*scale)/2) + 'px';
+      bin.style.top = (rect.height/2 - (binL*scale)/2) + 'px';
+      bin.style.width = (binW*scale) + 'px';
+      bin.style.height = (binL*scale) + 'px';
+      bin.style.border = '2px solid rgba(34,211,238,0.7)';
+      bin.style.borderRadius = '12px';
+      bin.style.background = 'rgba(34,211,238,0.10)';
+      container.appendChild(bin);
+
+      const cellW = itemW*scale, cellH=itemL*scale, gapPx=gap*scale;
+      let placed=0;
+      for(let r=0;r<rows;r++){
+        for(let c=0;c<cols;c++){
+          if(placed>=perLayer) break;
+          const d = document.createElement('div');
+          d.style.position='absolute';
+          d.style.left = (parseFloat(bin.style.left) + c*cellW + gapPx/2) + 'px';
+          d.style.top = (parseFloat(bin.style.top) + r*cellH + gapPx/2) + 'px';
+          d.style.width = (cellW-gapPx) + 'px';
+          d.style.height = (cellH-gapPx) + 'px';
+          d.style.borderRadius='8px';
+          d.style.background='linear-gradient(135deg, rgba(16,185,129,0.9), rgba(34,197,94,0.9))';
+          d.style.boxShadow='0 6px 16px rgba(0,0,0,0.25)';
+          container.appendChild(d);
+          placed++;
+        }
+      }
+
+      const label = document.createElement('div');
+      label.textContent = `${placed} มัด/ชั้น (จำลอง)`;
+      label.style.position='absolute';
+      label.style.left = bin.style.left;
+      label.style.top = `calc(${bin.style.top} - 28px)`;
+      label.style.color = '#a5f3fc';
+      label.style.fontSize = '14px';
+      container.appendChild(label);
+    }
+
+    // ========== Events ==========
+    btnAddModel.onclick = ()=> addModel();
+    btnClearModels.onclick = ()=>{ if(confirm('ลบรุ่นทั้งหมด?')){ models=[]; saveModels(); renderModels(); } };
+    btnAddLine.onclick = ()=> addOrderLine();
+    btnCalc.onclick = ()=>{ compute(); pulse(kpiTrips); pulse(bin2D); };
+    btnPrint.onclick = ()=> window.print();
+    btnReset.onclick = ()=>{ localStorage.removeItem('box_models'); location.reload(); };
+
+    function applyVehiclePreset(key){
+      const map = {
+        'pickup_box_single': {L:210, W:160, H:200},
+        'pickup_double': {L:210, W:160, H:175},
+        'fourw_jumbo': {L:310, W:180, H:200},
+        'sixw': {L:510, W:230, H:240}
+      };
+      const v = map[key]; if (!v) return;
+      cargoLEl.value = v.L; cargoWEl.value = v.W; cargoHEl.value = v.H;
+      compute();
+    }
+    vehiclePresetEl.onchange = ()=> applyVehiclePreset(vehiclePresetEl.value);
+
+    // ===== Sheets: Ping/Load/Save — (คงเดิม) =====
+   
+
+    btnPing.onclick = async ()=>{
+      if (!validateWebAppURL(sheetURL.value)) { alert('โปรดใส่ Web App URL ที่ลงท้าย /exec (Deploy แล้ว และตั้ง Anyone)'); return; }
+      try{
+        const url = new URL(sheetURL.value);
+        url.searchParams.set('action','ping');
+        if (sheetToken.value) url.searchParams.set('token', sheetToken.value);
+        const res = await fetch(url.toString(), { mode:'cors' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.ok) { sheetHint.textContent = `สถานะ: ต่อได้ ✓ (${json.message||'pong'})`; alert('เชื่อมต่อสำเร็จ ✓ พร้อมใช้งาน'); }
+        else throw new Error(json.message||'ping ไม่สำเร็จ');
+      } catch(e){ console.error(e); sheetHint.textContent = 'สถานะ: ต่อไม่สำเร็จ ✗'; alert('ต่อไม่สำเร็จ: ' + (e.message||e)); }
+    };
+
+    btnLoadProducts.onclick = async ()=>{
+      if (!validateWebAppURL(sheetURL.value)) { alert('โปรดใส่ Web App URL ที่ลงท้าย /exec (Deploy แล้ว และตั้ง Anyone)'); return; }
+      try{
+        const url = new URL(sheetURL.value);
+        url.searchParams.set('action','get_products');
+        if (sheetToken.value) url.searchParams.set('token', sheetToken.value);
+        const res = await fetch(url.toString(), { mode:'cors' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (Array.isArray(json.products)){
+          models = json.products.map(p=>({ id: uid(), ...p }));
+          localStorage.setItem('box_models', JSON.stringify(models));
+          renderModels(); sheetHint.textContent = 'สถานะ: ดึงสินค้าเรียบร้อย';
+        } else { throw new Error('รูปแบบข้อมูลไม่ถูกต้อง'); }
+      }catch(e){ console.error(e); alert('ดึงข้อมูลไม่สำเร็จ: ' + (e.message||e) + '\nตรวจ URL (/exec), สิทธิ์ Anyone, และ authorize ถ้ามี'); }
+    };
+
+    btnSaveProducts.onclick = async ()=>{
+      if (!validateWebAppURL(sheetURL.value)) { alert('โปรดใส่ Web App URL ที่ลงท้าย /exec (Deploy แล้ว และตั้ง Anyone)'); return; }
+      try{
+        const payload = {
+          action:'upsert_products',
+          token: sheetToken.value||'',
+          products: models.map(m=>({ name:m.name, L:m.L, W:m.W, H:m.H, boxesPerBundle:m.boxesPerBundle, pricePerBox:m.pricePerBox, pricePerBundle:m.pricePerBundle, note:m.note||'' }))
+        };
+        const res = await fetch(sheetURL.value, {
+          method:'POST', mode:'cors',
+          headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.ok) { alert('บันทึกรุ่นสินค้าเรียบร้อย'); sheetHint.textContent = 'สถานะ: บันทึกรุ่นสินค้าเรียบร้อย'; }
+        else throw new Error(json.message||'บันทึกไม่สำเร็จ');
+      }catch(e){ console.error(e); alert('บันทึกรุ่นสินค้าไม่สำเร็จ: ' + (e.message||e)); }
+    };
+
+    btnSaveOrder.onclick = async ()=>{
+      if (!validateWebAppURL(sheetURL.value)) { alert('โปรดใส่ Web App URL ที่ลงท้าย /exec (Deploy แล้ว และตั้ง Anyone)'); return; }
+      if (!orderLines.length){ alert('ยังไม่มีรายการสั่งซื้อ'); return; }
+      const data = {
+        token: sheetToken.value||'',
+        action: 'save_order',
+        customer: { name: custName.value||'', phone: custPhone.value||'', date: custDate.value||nowDate() },
+        order: orderLines.map(l=>{
+          const m = models.find(x=>x.id===l.modelId);
+          return {
+            model: m?.name||'',
+            size: `${m?.L||0}x${m?.W||0}x${m?.H||0}`,
+            qty_box: l.qty,
+            per_bundle: m?.boxesPerBundle||0,
+            bundles: Math.ceil(l.qty / (m?.boxesPerBundle||1)),
+            price_box: (l.sellPricePerBox && l.sellPricePerBox>0)? l.sellPricePerBox : (m?.pricePerBox||0),
+            price_bundle: m?.pricePerBundle||0,
+            price_mode: l.priceMode
+          }
+        })
+      };
+      try{
+        const res = await fetch(sheetURL.value, {
+          method:'POST', mode:'cors',
+          headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+          body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        alert(json.message || 'บันทึกออเดอร์สำเร็จ'); sheetHint.textContent = 'สถานะ: บันทึกออเดอร์เรียบร้อย';
+      }catch(e){ console.error(e); alert('บันทึกออเดอร์ไม่สำเร็จ: ' + (e.message||e) + '\nตรวจ URL (/exec) และสิทธิ์ Anyone'); }
+    };
+
+    btnSavePDF.onclick = async ()=>{
+      if (!validateWebAppURL(sheetURL.value)) { alert('โปรดใส่ Web App URL ที่ลงท้าย /exec (Deploy แล้ว และตั้ง Anyone)'); return; }
+      if (!lastSummary || !orderLines.length){ alert('กรุณาคำนวณก่อนและใส่รายการ'); return; }
+
+      // สร้าง payload จาก "quoteRows" ที่เราแสดงอยู่จริงในตาราง
+      // เพื่อให้ PDF ตรงกับที่เห็น
+      const rows = Array.from(quoteLines.querySelectorAll('tr')).map(tr=>{
+        const tds = tr.querySelectorAll('td');
+        if (tds.length<7) return null;
+        return {
+          model: tds[0].innerText,
+          qty_box: +tds[1].innerText.replace(/,/g,'')||0,
+          bundles: +tds[2].innerText.replace(/,/g,'')||0,
+          price_box: tds[3].innerText.startsWith('฿')? +tds[3].innerText.replace(/[฿,]/g,''):0,
+          price_bundle: tds[4].innerText.startsWith('฿')? +tds[4].innerText.replace(/[฿,]/g,''):0,
+          discount: tds[5].innerText.startsWith('฿')? +tds[5].innerText.replace(/[฿,]/g,''):0,
+          line_total: +tds[6].innerText.replace(/[฿,]/g,'')||0
+        }
+      }).filter(Boolean);
+
+      const ship = +quoteShip.innerText.replace(/[฿,]/g,'')||0;
+      const grand = +quoteTotal.innerText.replace(/[฿,]/g,'')||0;
+
+      const payload = {
+        action:'save_quote_pdf',
+        token: sheetToken.value||'',
+        fileName: `QUOTE-${(custName.value||'CUSTOMER')}`,
+        customer: { name:custName.value||'', phone:custPhone.value||'', date:custDate.value||nowDate() },
+        order: rows,
+        totals: {
+          shipCost: ship,
+          grandTotal: grand,
+          trips: lastSummary.trips,
+          vehicle: `ประมาณการบรรทุก: ${fmtInt(lastSummary.maxBundlesPerTrip||0)} มัด/เที่ยว`
+        }
+      };
+
+      try{
+        const res = await fetch(sheetURL.value, {
+          method:'POST', mode:'cors',
+          headers:{ 'Content-Type':'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (json.ok && json.url){ sheetHint.innerHTML = `สถานะ: บันทึก PDF แล้ว • <a class="link" href="${json.url}" target="_blank" rel="noopener">เปิดไฟล์</a>`; alert('บันทึก PDF เรียบร้อย!'); }
+        else throw new Error(json.message || 'บันทึก PDF ไม่สำเร็จ');
+      }catch(e){ console.error(e); alert('บันทึก PDF ไม่สำเร็จ: ' + (e.message||e) + '\n(เปิด URL /exec ในแท็บเพื่อ authorize ถ้าขึ้นหน้าขอสิทธิ์)'); }
+    };
+
+    // Copy Apps Script (เดิม)
+    btnCopyGS.onclick = async ()=>{
+      try{ await navigator.clipboard.writeText(gsCode.value); btnCopyGS.textContent='คัดลอกแล้ว ✓'; setTimeout(()=>btnCopyGS.textContent='คัดลอกสคริปต์',1500);}catch(e){
+        gsCode.select(); document.execCommand('copy'); btnCopyGS.textContent='คัดลอกแล้ว ✓'; setTimeout(()=>btnCopyGS.textContent='คัดลอกสคริปต์',1500);
+      }
+    };
+
+    // Enter = add model
+    ['p_name','p_L','p_W','p_H','p_boxesPerBundle','p_pricePerBox','p_pricePerBundle','p_note']
+      .forEach(id=> byId(id).addEventListener('keydown', (e)=>{ if(e.key==='Enter'){ addModel(); } }));
+
+    // Init
+    renderModels(); renderOrder(); compute();
+  </script>
+</body>
+</html>

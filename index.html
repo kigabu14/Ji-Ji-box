@@ -71,7 +71,7 @@
       </div>
 
       <div class="card rounded-2xl p-6">
-        <h2 class="text-xl font-semibold mb-4">เชื่อม Google Sheets (เดโม่)</h2>
+        <h2 class="text-xl font-semibold mb-4">เชื่อม Google Sheets </h2>
         <label class="block text-sm text-white/80 mb-1">Web App URL (POST/GET)</label>
         <input id="sheetURL" value='https://script.google.com/macros/s/AKfycbxN7gEpLJFUMcCRxBhT4OjMujuVYF8y2HI3Qh1neZtCU-5uACSsQLJj2Xvzg4cVrew/exec' placeholder="วาง URL ของ Google Apps Script Web App (ต้องลงท้าย /exec)" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
         <label class="block text-sm text-white/80 mb-1 mt-3">Token (ถ้ามี)</label>
@@ -233,21 +233,7 @@
       </div>
       <div class="text-xs text-white/60 mt-3">ใบเสนอราคาเป็นการประเมินเบื้องต้น อาจมีการเปลี่ยนแปลงตามเงื่อนไขจริง</div>
     </section>
-
-    <!-- APPS SCRIPT HELPER -->
-    <section class="mt-10 card rounded-2xl p-6 no-print">
-      <h2 class="text-xl font-semibold">เทมเพลต Apps Script (Version 3)</h2>
-      <p class="text-white/70 text-sm mt-2">รองรับ: ping, get_products, save_order, upsert_products, save_quote_pdf</p>
-      <div class="flex items-center justify-between gap-3 mt-3">
-        <span class="text-sm text-white/70">คัดลอกทั้งหมดแล้ววางใน Code.gs</span>
-        <button id="btnCopyGS" class="px-4 py-2 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-900 font-semibold">คัดลอกสคริปต์</button>
-      </div>
-      <textarea id="gsCode" class="mt-3 w-full h-[460px] p-4 rounded-xl bg-black/70 border border-white/10 text-cyan-100 text-xs" spellcheck="false">
-// ==== Google Apps Script for "Version 3" ====
-// ... (คงเดิมจากไฟล์ของคุณด้านบน ไม่เปลี่ยนส่วน Apps Script) ...
-      </textarea>
-      <div class="text-white/70 text-xs mt-2">Deploy เป็น Web app → Execute as: Me, Who has access: Anyone, เอา URL ที่ลงท้าย <b>/exec</b></div>
-    </section>
+   </section>
   </main>
 
   <script>
@@ -329,13 +315,23 @@
       ];
     }
 
-    // ========== Helpers ==========
-    function bundleFootprint(model){
-      const w = (Number(model.W)||0) + (Number(model.H)||0);
-      const l = (Number(model.L)||0) + (Number(model.W)||0);
-      const h = 12; // cm
-      return {w, l, h};
-    }
+function bundleFootprint(model){
+  const L = Number(model.L) || 0;
+  const W = Number(model.W) || 0;
+  const H = Number(model.H) || 0;
+
+  // ลอน B ~ 3 มม. = 0.3 ซม. ต่อใบ
+  const caliper_cm = 0.3*2 ;
+
+  const perBundle = Math.max(1, Number(model.boxesPerBundle) || 20);
+
+  // มัดแบน RSC: ฐาน = L × (W+H), สูง = จำนวนใบ × caliper
+  const w = L;
+  const l = W + H;
+  const h = perBundle * caliper_cm;
+
+  return { w, l, h };
+}
 
     // ========== Render ==========
     function renderModels(){
@@ -485,214 +481,131 @@
     }
 
     // ========== Compute (อัดเต็มพื้นที่ + ทำ Quote จากรายการขายจริง) ==========
-    function compute(){
-      const gap = Math.max(0, +gapEl.value || 0);
-      const autoRotate = autoRotateEl.checked;
-      const fillToFull = fillToFullEl.checked;
-      const cargoL = +cargoLEl.value, cargoW = +cargoWEl.value, cargoH = +cargoHEl.value;
-      const safeH = cargoH * (1 - (+safetyPctEl.value||0)/100);
+		// ========== Compute (เวอร์ชันง่าย: ใช้ปริมาตรรวมเทียบปริมาตรรถ) ==========
+function compute(){
+  const gap = Math.max(0, +gapEl.value || 0); // ใช้ไม่มากในโหมด volume
+  const cargoL = +cargoLEl.value, cargoW = +cargoWEl.value, cargoH = +cargoHEl.value;
+  const safeH = cargoH * (1 - (+safetyPctEl.value||0)/100);
 
-      let totalQty = 0, totalBundles = 0, subTotal = 0;
-      let perModel = [];         // สำหรับสรุปใช้พื้นที่
-      let quoteRows = [];        // สำหรับแสดงในใบเสนอราคา
+  let totalQty = 0, totalBundles = 0, subTotal = 0;
+  let perModel = [];
+  let quoteRows = [];
 
-      if (!orderLines.length){
-        quoteLines.innerHTML = '';
-        quoteShip.textContent = '-';
-        quoteTotal.textContent = '-';
-      }
+  // ==== รวมข้อมูลจาก orderLines ====
+  for (const l of orderLines){
+    const m = models.find(x=>x.id===l.modelId); if(!m) continue;
+    const bundles = Math.ceil(l.qty / Math.max(1, m.boxesPerBundle));
 
-      // คำนวณทีละบรรทัด (รองรับราคาขายเอง/ส่วนลด)
-      for (const l of orderLines){
-        const m = models.find(x=>x.id===l.modelId); if(!m) continue;
-        const bundles = Math.ceil(l.qty / Math.max(1, m.boxesPerBundle));
-        totalQty += l.qty; totalBundles += bundles;
+    // ราคา (เหมือนเดิม)
+    const unitBBase = m.pricePerBox;
+    const unitBundle = m.pricePerBundle;
+    const unitBSell = (l.sellPricePerBox && l.sellPricePerBox>0) ? l.sellPricePerBox : unitBBase;
+    let usedMode = l.priceMode, lineTotal = 0;
+    if (l.sellPricePerBox && l.sellPricePerBox>0){
+      usedMode='perBox'; lineTotal = unitBSell * l.qty;
+    } else if (l.priceMode==='auto'){
+      const tBox = unitBSell*l.qty, tBundle = unitBundle*bundles;
+      if (tBox <= tBundle){ usedMode='perBox'; lineTotal=tBox; } else { usedMode='perBundle'; lineTotal=tBundle; }
+    } else if (l.priceMode==='perBox'){ lineTotal = unitBSell*l.qty; }
+    else { lineTotal = unitBundle*bundles; }
+    const discountLine = +l.discountAmt || 0;
+    lineTotal = Math.max(0, lineTotal - discountLine);
 
-        const fp = bundleFootprint(m);
+    subTotal += lineTotal;
+    totalQty += l.qty; totalBundles += bundles;
 
-        // ราคา
-        const unitBBase = m.pricePerBox;
-        const unitBundle = m.pricePerBundle;
-        const unitBSell = (l.sellPricePerBox && l.sellPricePerBox>0)? l.sellPricePerBox : unitBBase;
+    const fp = bundleFootprint(m); // {w,l,h} หน่วยซม.
+    perModel.push({ m, qty:l.qty, bundles, usedMode, fp });
 
-        let usedMode = l.priceMode;
-        let lineTotal = 0;
-        if (l.sellPricePerBox && l.sellPricePerBox>0){
-          usedMode = 'perBox';
-          lineTotal = unitBSell * l.qty;
-        } else if (l.priceMode==='auto'){
-          const tBox = unitBSell * l.qty;
-          const tBundle = unitBundle * bundles;
-          if (tBox <= tBundle) { usedMode='perBox'; lineTotal=tBox; }
-          else { usedMode='perBundle'; lineTotal=tBundle; }
-        } else if (l.priceMode==='perBox'){ lineTotal = unitBSell * l.qty; }
-        else { lineTotal = unitBundle * bundles; }
+    quoteRows.push({
+      model: m.name,
+      qtyBox: l.qty,
+      bundles,
+      pricePerBox: (usedMode==='perBox') ? unitBSell : 0,
+      pricePerBundle: (usedMode==='perBundle') ? unitBundle : 0,
+      discount: discountLine,
+      lineTotal
+    });
+  }
 
-        // หักส่วนลดบรรทัด
-        const discountLine = +l.discountAmt || 0;
-        lineTotal = Math.max(0, lineTotal - discountLine);
+  // ถ้าไม่มีรายการ
+  if (!orderLines.length){
+    quoteLines.innerHTML = '';
+    quoteShip.textContent = '-';
+    quoteTotal.textContent = '-';
+  }
 
-        subTotal += lineTotal;
+  // ==== คำนวณปริมาตรรวมของมัด (cm³ → m³) ====
+  let totalVolumeM3 = 0;
+  for (const x of perModel){
+    const volOneBundle_m3 = (x.fp.w * x.fp.l * x.fp.h) / 1e6; // cm³ -> m³
+    totalVolumeM3 += volOneBundle_m3 * x.bundles;
+  }
 
-        perModel.push({ m, qty:l.qty, bundles, usedMode, fp });
+  // ปริมาตรตู้ (m³)
+  const cargoVolM3 = (cargoL/100) * (cargoW/100) * (safeH/100);
 
-        // เก็บข้อมูลสำหรับตาราง Quote
-        quoteRows.push({
-          model: `${m.name}`,
-          qtyBox: l.qty,
-          bundles: bundles,
-          pricePerBox: (usedMode==='perBox') ? unitBSell : 0,
-          pricePerBundle: (usedMode==='perBundle') ? unitBundle : 0,
-          discount: discountLine,
-          lineTotal: lineTotal
-        });
-      }
+  // จำนวนเที่ยว = ceil(รวม/ตู้) (มีของ → อย่างน้อย 1)
+  const trips = totalVolumeM3>0 ? Math.max(1, Math.ceil(totalVolumeM3 / Math.max(1e-9, cargoVolM3))) : 0;
 
-      // ====== เลเยอร์ต่อชั้นแบบ "อัดเต็มพื้นที่" : ผสมการหมุน + แบ่งโซน ======
-      // เลือก footprint ที่ “ใหญ่สุด” เป็นฐาน แต่ลองแบ่งโซนวางผสม (guillotine split) เพื่อให้เต็มขึ้น
-      let maxW=0, maxL=0, hPerBundle=12;
-      perModel.forEach(x=>{ maxW = Math.max(maxW, x.fp.w); maxL = Math.max(maxL, x.fp.l); });
+  // ใช้/เที่ยว (โชว์ที่ KPI)
+  const usedVolThisTrip = Math.min(totalVolumeM3, cargoVolM3);
+  const volLeftThisTrip = Math.max(0, cargoVolM3 - usedVolThisTrip);
 
-      function fitSimple(binW, binL, itemW, itemL, gap){
-        const cols = Math.max(0, Math.floor( binW / (itemW+gap) ));
-        const rows = Math.max(0, Math.floor( binL / (itemL+gap) ));
-        return {cols, rows, count: cols*rows};
-      }
+  // ==== KPI ====
+  const shipCost = (+shipPerTripEl.value||0) * trips;
+  kpiQty.textContent   = `${fmtInt(totalQty)} ใบ`;
+  kpiBundles.textContent = `${fmtInt(totalBundles)} มัด`;
+  kpiPrice.textContent = fmtMoney(subTotal);
+  kpiShip.textContent  = `ค่าขนส่งรวม: ${fmtMoney(shipCost)} (${fmtInt(trips)} เที่ยว × ${fmtMoney(+shipPerTripEl.value||0)})`;
+  kpiVol.textContent   = `${usedVolThisTrip.toFixed(3)} / ${cargoVolM3.toFixed(3)} ลบ.ม.`;
+  kpiVolLeft.textContent = `เหลือ ~ ${volLeftThisTrip.toFixed(3)} ลบ.ม.`;
+  kpiTrips.textContent  = `${fmtInt(trips)} เที่ยว`;
 
-      function bestLayer(binW, binL, itemW, itemL, gap, allowRotate){
-        // 1) เดี่ยว ๆ 2 ทิศ
-        const A = fitSimple(binW, binL, itemW, itemL, gap);
-        const B = fitSimple(binW, binL, itemL, itemW, gap);
-        let best = { perLayer:0, cols:A.cols, rows:A.rows, w:itemW, l:itemL, mode:'A' };
-        if (B.count > (A.cols*A.rows)) best = { perLayer:B.count, cols:B.cols, rows:B.rows, w:itemL, l:itemW, mode:'B' };
-        else best.perLayer = A.cols*A.rows;
+  // สรุปต่อชั้น/ป้ายข้อความ
+  perLayerSummary.textContent = `คำนวณแบบปริมาตรง่าย ๆ ~ ${fmtInt(totalBundles)} มัด รวม ~ ${totalVolumeM3.toFixed(3)} ลบ.ม.`;
+  bundleSizes.innerHTML = perModel.length>0
+    ? perModel.map(x=>`• ${x.m.name}: ${(x.fp.w).toFixed(1)} × ${(x.fp.l).toFixed(1)} × ${(x.fp.h).toFixed(1)} ซม. (${fmtInt(x.bundles)} มัด)`).join('<br>')
+    : '-';
+  bin2D.innerHTML = 'โหมดคำนวณปริมาตร (ไม่จำลองการวาง)';
 
-        if (!allowRotate) return best;
-
-        // 2) ผสมแบบ "แบ่งตามความกว้าง" (แนวคอลัมน์ A + ที่เหลือเป็น B)
-        const colA = Math.floor(binW/(itemW+gap));
-        const rowA = Math.floor(binL/(itemL+gap));
-        const rowB = Math.floor(binL/(itemW+gap));
-        for (let k=0; k<=colA; k++){
-          const usedW = k*(itemW+gap);
-          const leftW = binW - usedW;
-          const colB = Math.max(0, Math.floor(leftW/(itemL+gap)));
-          const count = (k*rowA) + (colB*rowB);
-          if (count > best.perLayer){
-            best = { perLayer:count, cols:k, rows:rowA, w:itemW, l:itemL, mode:'mixW' };
-          }
-        }
-
-        // 3) ผสมแบบ "แบ่งตามความยาว" (แนวแถว A + ที่เหลือเป็น B)
-        const rowA2 = Math.floor(binL/(itemL+gap));
-        const colA2 = Math.floor(binW/(itemW+gap));
-        const colB2 = Math.floor(binW/(itemL+gap));
-        for (let r=0; r<=rowA2; r++){
-          const usedL = r*(itemL+gap);
-          const leftL = binL - usedL;
-          const rowB2 = Math.max(0, Math.floor(leftL/(itemW+gap)));
-          const count = (r*colA2) + (rowB2*colB2);
-          if (count > best.perLayer){
-            best = { perLayer:count, cols:colA2, rows:r, w:itemW, l:itemL, mode:'mixL' };
-          }
-        }
-
-        return best;
-      }
-
-      const chosen = bestLayer(+cargoW, +cargoL, maxW, maxL, gap, autoRotate);
-      const layers = Math.max(0, Math.floor( safeH / (hPerBundle + gap) ));
-      let maxBundlesPerTrip = chosen.perLayer * layers;
-
-      // ถ้าติ๊ก "ใส่จนเต็มคัน" และยังเหลือพื้นที่แนวตั้ง ให้ดันชั้นเพิ่ม (กรณี gap ทำให้ยังเหลือ)
-      if (fillToFull && maxBundlesPerTrip>0){
-        const canAddLayer = Math.floor( (safeH + gap) / (hPerBundle + gap) );
-        if (canAddLayer > layers){
-          maxBundlesPerTrip = chosen.perLayer * canAddLayer;
-        }
-      }
-
-      // ประมาณปริมาตร: ใช้ค่าเฉลี่ย footprint ของทุกมัด จะให้ตัวเลขใกล้จริงมากกว่า
-      let totalFootArea_cm2 = 0;
-      perModel.forEach(x=> totalFootArea_cm2 += x.bundles * (x.fp.w * x.fp.l));
-      const avgFootArea_cm2 = totalBundles>0 ? totalFootArea_cm2 / totalBundles : (maxW*maxL);
-      const volPerBundle_m3 = (avgFootArea_cm2/10000) * (hPerBundle/100);
-      const cargoVolM3 = (cargoL/100)*(cargoW/100)*(safeH/100);
-
-      if (maxBundlesPerTrip <= 0 && totalBundles > 0){
-        kpiQty.textContent = `${fmtInt(totalQty)} ใบ`;
-        kpiBundles.textContent = `${fmtInt(totalBundles)} มัด`;
-        kpiPrice.textContent = fmtMoney(subTotal);
-        kpiShip.textContent  = 'ค่าขนส่งรวม: -';
-        kpiVol.textContent   = `0.000 / ${cargoVolM3.toFixed(3)} ลบ.ม.`;
-        kpiVolLeft.textContent = `เหลือ ~ ${cargoVolM3.toFixed(3)} ลบ.ม.`;
-        kpiTrips.textContent = 'ไม่สามารถบรรทุกได้';
-        document.getElementById('tripBreakdown').innerHTML = '<div class="text-white/60">ไม่สามารถบรรทุกได้ด้วยค่าปัจจุบัน</div>';
-        perLayerSummary.textContent = 'มัดใหญ่เกินพื้นที่ชั้นเดียว กรุณาลดไซต์หรือปรับค่ารถ';
-        bundleSizes.innerHTML = perModel.length>0 ? perModel.map(x=>`• ${x.m.name}: ${(x.fp.w).toFixed(1)} × ${(x.fp.l).toFixed(1)} × 12 ซม. (${fmtInt(x.bundles)} มัด)`).join('<br>') : '-';
-        lastSummary = null;
-        // อัปเดต Quote จากออเดอร์ (แม้บรรทุกไม่ได้)
-        fillQuoteTable(quoteRows, 0, subTotal);
-        return;
-      }
-
-      // สรุปเที่ยว
-      const tripCards = [];
-      let bundlesLeft = totalBundles, tripIndex = 0;
-      while (bundlesLeft > 0 && maxBundlesPerTrip>0 && tripIndex < 200){
-        tripIndex++;
-        const thisTripBundles = Math.min(bundlesLeft, maxBundlesPerTrip);
-        const thisTripVol = thisTripBundles * volPerBundle_m3;
-        const thisTripVolLeft = Math.max(0, cargoVolM3 - thisTripVol);
-        const isFull = thisTripBundles===maxBundlesPerTrip;
-        tripCards.push({trip: tripIndex, bundles: thisTripBundles, vol: thisTripVol, volLeft: thisTripVolLeft, full: isFull});
-        bundlesLeft -= thisTripBundles;
-      }
-      const trips = tripCards.length;
-      const shipCost = (+shipPerTripEl.value||0) * trips;
-
-      const usedBundlesThisTrip = Math.min(totalBundles, maxBundlesPerTrip);
-      const usedVolThisTrip = usedBundlesThisTrip * volPerBundle_m3;
-      const volLeftThisTrip = Math.max(0, cargoVolM3 - usedVolThisTrip);
-
-      // KPI
-      kpiQty.textContent = `${fmtInt(totalQty)} ใบ`;
-      kpiBundles.textContent = `${fmtInt(totalBundles)} มัด`;
-      kpiPrice.textContent = fmtMoney(subTotal);
-      kpiShip.textContent = `ค่าขนส่งรวม: ${fmtMoney(shipCost)} (${fmtInt(trips)} เที่ยว × ${fmtMoney(+shipPerTripEl.value||0)})`;
-      kpiVol.textContent = `${usedVolThisTrip.toFixed(3)} / ${cargoVolM3.toFixed(3)} ลบ.ม.`;
-      kpiVolLeft.textContent = `เหลือ ~ ${volLeftThisTrip.toFixed(3)} ลบ.ม.`;
-      kpiTrips.textContent = `${fmtInt(trips)} เที่ยว`;
-
-      // สรุปการวางต่อชั้น
-      perLayerSummary.textContent = chosen.perLayer>0 ?
-        `ต่อชั้น ~ ${fmtInt(chosen.perLayer)} มัด × ซ้อน ~ ${fmtInt(layers)} ชั้น ≈ ~ ${fmtInt(maxBundlesPerTrip)} มัด/เที่ยว` :
-        'มัดใหญ่เกินพื้นที่ชั้นเดียว กรุณาลดไซต์หรือปรับค่ารถ';
-      drawPacking(bin2D, cargoW, cargoL, chosen.w, chosen.l, chosen.perLayer, chosen.cols, chosen.rows, gap);
-
-      bundleSizes.innerHTML = perModel.length>0 ? perModel.map(x=>`• ${x.m.name}: ${(x.fp.w).toFixed(1)} × ${(x.fp.l).toFixed(1)} × 12 ซม. (${fmtInt(x.bundles)} มัด)`).join('<br>') : '-';
-
-      // Trip breakdown
-      const tripBreakdownEl = document.getElementById('tripBreakdown');
-      tripBreakdownEl.innerHTML = tripCards.map(t=>`<div class="rounded-xl p-4 bg-white/5 border border-white/10">
-        <div class="font-semibold">เที่ยวที่ ${t.trip} ${t.full? '• เต็มพิกัด ✅' : `• ไม่เต็ม เหลือ ${t.volLeft.toFixed(3)} ลบ.ม.`}</div>
-        <div class="text-white/80 text-sm mt-1">บรรทุก ~ ${fmtInt(t.bundles)} มัด</div>
-        <div class="text-white/70 text-sm">ใช้ ~ ${t.vol.toFixed(3)} ลบ.ม. • คงเหลือ ~ ${t.volLeft.toFixed(3)} ลบ.ม.</div>
-      </div>`).join('');
-
-      // อัปเดตตารางใบเสนอราคา จาก "รายการที่จะขายจริง"
-      fillQuoteTable(quoteRows, shipCost, subTotal);
-
-      // เก็บสรุป
-      lastSummary = {
-        perModel, totalQty, totalBundles,
-        totalPrice: subTotal,
-        shipCost, trips,
-        cargo: { L:cargoL, W:cargoW, H:safeH },
-        vol: { cargoVolM3, volPerBundle_m3, usedVolThisTrip, volLeftThisTrip },
-        capacityBySpace: maxBundlesPerTrip, maxBundlesPerTrip
-      };
+  // สรุปแต่ละเที่ยวแบบแบ่งตามปริมาตร
+  const tripBreakdownEl = document.getElementById('tripBreakdown');
+  if (trips===0){
+    tripBreakdownEl.innerHTML = '<div class="text-white/60">ยังไม่มีรายการ</div>';
+  }else{
+    let remainVol = totalVolumeM3;
+    const cards = [];
+    for (let t=1; t<=trips; t++){
+      const take = Math.min(remainVol, cargoVolM3);
+      const left = Math.max(0, cargoVolM3 - take);
+      const full = left < 1e-9;
+      cards.push(`
+        <div class="rounded-xl p-4 bg-white/5 border border-white/10">
+          <div class="font-semibold">เที่ยวที่ ${t} ${full ? '• เต็มพิกัด ✅' : `• ไม่เต็ม เหลือ ${left.toFixed(3)} ลบ.ม.`}</div>
+          <div class="text-white/70 text-sm mt-1">ใช้ ~ ${take.toFixed(3)} ลบ.ม. • คงเหลือในคัน ~ ${left.toFixed(3)} ลบ.ม.</div>
+        </div>
+      `);
+      remainVol -= take;
     }
+    tripBreakdownEl.innerHTML = cards.join('');
+  }
+
+  // อัปเดตใบเสนอราคา
+  fillQuoteTable(quoteRows, shipCost, subTotal);
+
+  // เก็บสรุป
+  lastSummary = {
+    perModel,
+    totalQty, totalBundles,
+    totalPrice: subTotal,
+    shipCost, trips,
+    cargo: { L:cargoL, W:cargoW, H:safeH },
+    vol: { cargoVolM3, totalVolumeM3, usedVolThisTrip, volLeftThisTrip },
+    capacityBySpace: null,
+    maxBundlesPerTrip: null
+  };
+}
 
     // เติมตารางใบเสนอราคา + ส่วนลดรวม
     function fillQuoteTable(rows, shipCost, subTotal){

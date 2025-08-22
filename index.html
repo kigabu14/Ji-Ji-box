@@ -73,7 +73,7 @@
       <div class="card rounded-2xl p-6">
         <h2 class="text-xl font-semibold mb-4">เชื่อม Google Sheets </h2>
         <label class="block text-sm text-white/80 mb-1">Web App URL (POST/GET)</label>
-        <input id="sheetURL" value='https://script.google.com/macros/s/AKfycbxN7gEpLJFUMcCRxBhT4OjMujuVYF8y2HI3Qh1neZtCU-5uACSsQLJj2Xvzg4cVrew/exec' placeholder="วาง URL ของ Google Apps Script Web App (ต้องลงท้าย /exec)" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
+        <input id="sheetURL" value='https://script.google.com/macros/s/AKfycbzB5zWeiP1HAgAJmuC8yA6fPPhsvp8PPFaOSBM-kUvXBufDrPJqQ64dE7lNL2YrD0Ia/exec' placeholder="วาง URL ของ Google Apps Script Web App (ต้องลงท้าย /exec)" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
         <label class="block text-sm text-white/80 mb-1 mt-3">Token (ถ้ามี)</label>
         <input id="sheetToken" placeholder="ใส่โทเคนถ้าต้องการ" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
         <div class="flex flex-wrap gap-2 mt-4">
@@ -628,14 +628,14 @@ function compute(){
       const discPct = +((discEl && discEl.value) ? discEl.value : 0) || 0;
 
 // ตัดส่วนลดเป็นเปอร์เซ็นต์ของ (สินค้า+ขนส่ง)
-      const base = (subTotal||0) + (shipCost||0);
+      const base = (subTotal||0)
       const discAmt = base * (discPct/100);
 
 // เวลากรอก input ใหม่ให้คำนวณซ้ำ
       discEl && (discEl.oninput = ()=> compute());
 
       const grand = Math.max(0, base - discAmt);
-      quoteTotal.textContent = fmtMoney(grand);
+      quoteTotal.textContent = fmtMoney(grand+shipCost);
     }
 
     // วาดจำลองต่อชั้น

@@ -219,7 +219,7 @@
               <td colspan="2" id="quoteShip" class="text-right font-semibold pt-2">-</td>
             </tr>
             <tr>
-              <td colspan="5" class="text-right font-semibold">ส่วนลดรวม (บาท)</td>
+              <td colspan="5" class="text-right font-semibold">ส่วนลดรวม (%)</td>
               <td colspan="2">
                 <input id="orderDiscount" type="number" value="0" class="w-32 px-2 py-1 rounded-md bg-white/10 border border-white/20 text-right" />
               </td>
@@ -624,13 +624,17 @@ function compute(){
 
       // ค่าขนส่งรวม
       quoteShip.textContent = fmtMoney(shipCost||0);
-
-      // ส่วนลดรวม (บาท)
       const discEl = byId('orderDiscount');
-      const disc = +((discEl && discEl.value) ? discEl.value : 0) || 0;
-      discEl && (discEl.oninput = ()=> compute()); // bind ให้คำนวณใหม่เมื่อแก้ส่วนลดรวม
+      const discPct = +((discEl && discEl.value) ? discEl.value : 0) || 0;
 
-      const grand = Math.max(0, (subTotal||0) + (shipCost||0) - disc);
+// ตัดส่วนลดเป็นเปอร์เซ็นต์ของ (สินค้า+ขนส่ง)
+      const base = (subTotal||0) + (shipCost||0);
+      const discAmt = base * (discPct/100);
+
+// เวลากรอก input ใหม่ให้คำนวณซ้ำ
+      discEl && (discEl.oninput = ()=> compute());
+
+      const grand = Math.max(0, base - discAmt);
       quoteTotal.textContent = fmtMoney(grand);
     }
 

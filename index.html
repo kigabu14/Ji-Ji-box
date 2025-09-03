@@ -9,10 +9,10 @@
   <style>
     :root { --brand:#22d3ee; --brand2:#0ea5e9; }
     html, body { font-family: 'Prompt', system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
-    .gradient { background: radial-gradient(1000px 600px at 10% -10%, rgba(34,211,238,.25), transparent 60%), radial-gradient(900px 400px at 90% 10%, rgba(14,165,233,.25), transparent 60%), linear-gradient(180deg, #0f172a, #0b1220); }
-    .card { background: rgba(2,6,23,.65); border: 1px solid rgba(255,255,255,.08); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
-    .chip { background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.08); }
-    .kpi { background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08); }
+    .gradient { background: radial-gradient(1000px 600px at 10% -10%, rgba(34,211,220,.25), transparent 60%), radial-gradient(900px 400px at 90% 10%, rgba(14,165,233,.25), transparent 60%), linear-gradient(180deg, #0f172a, #0b1220); }
+    .card { background: rgba(2,6,23,.65); border: 1px solid rgba(255,255,200,.08); box-shadow: 0 10px 30px rgba(0,0,0,.25); }
+    .chip { background: rgba(255,255,150,.08); border: 1px solid rgba(255,255,150,.08); }
+    .kpi { background: rgba(255,255,150,.06); border: 1px solid rgba(255,255,150,.08); }
     @media print { .no-print { display: none !important } body { background:#fff } .print-area { background:#fff!important;color:#0b1220!important;border:none!important;box-shadow:none!important } }
     a.link { color:#67e8f9; text-decoration: underline; }
     .mini { font-size:.8rem }
@@ -73,7 +73,7 @@
       <div class="card rounded-2xl p-6">
         <h2 class="text-xl font-semibold mb-4">เชื่อม Google Sheets </h2>
         <label class="block text-sm text-white/80 mb-1">Web App URL (POST/GET)</label>
-        <input id="sheetURL" value='https://script.google.com/macros/s/AKfycbzB5zWeiP1HAgAJmuC8yA6fPPhsvp8PPFaOSBM-kUvXBufDrPJqQ64dE7lNL2YrD0Ia/exec' placeholder="วาง URL ของ Google Apps Script Web App (ต้องลงท้าย /exec)" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
+        <input id="sheetURL" value='https://script.google.com/macros/s/AKfycby8arY47nPVkCcOGMGH2Bz4pJfQg1syaWrEALi1rz9STutL1hwFTac5V1eJt6afngTUSg/exec' placeholder="วาง URL ของ Google Apps Script Web App (ต้องลงท้าย /exec)" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
         <label class="block text-sm text-white/80 mb-1 mt-3">Token (ถ้ามี)</label>
         <input id="sheetToken" placeholder="ใส่โทเคนถ้าต้องการ" class="w-full px-4 py-2.5 rounded-xl bg-white/10 border border-white/10 focus:ring-2 focus:ring-cyan-400">
         <div class="flex flex-wrap gap-2 mt-4">
